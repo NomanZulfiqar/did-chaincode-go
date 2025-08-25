@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric/protos/peer"
 )
 
-// DIDContract provides functions for managing DIDs
-type DIDContract struct {
-	contractapi.Contract
+// DIDChaincode implements a simple chaincode to manage DIDs
+type DIDChaincode struct {
 }
 
 // DIDDocument represents a DID document structure
@@ -25,21 +25,56 @@ type DIDDocument struct {
 	RecoveredAt time.Time `json:"recoveredAt,omitempty"`
 }
 
-// InitLedger initializes the ledger
-func (s *DIDContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
-	fmt.Println("DID Chaincode initialized")
-	return nil
+// Init is called during chaincode instantiation
+func (t *DIDChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
+	return shim.Success(nil)
 }
 
-// CreateDID anchors a new DID Document on Fabric
-func (s *DIDContract) CreateDID(ctx contractapi.TransactionContextInterface, did string, longFormDid string, documentJSON string) error {
+// Invoke is called per transaction on the chaincode
+func (t *DIDChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
+	function, args := stub.GetFunctionAndParameters()
+	
+	switch function {
+	case "InitLedger":
+		return t.initLedger(stub)
+	case "CreateDID":
+		return t.createDID(stub, args)
+	case "UpdateDID":
+		return t.updateDID(stub, args)
+	case "RecoverDID":
+		return t.recoverDID(stub, args)
+	case "GetDID":
+		return t.getDID(stub, args)
+	case "ListDIDs":
+		return t.listDIDs(stub)
+	default:
+		return shim.Error("Invalid function name")
+	}
+}
+
+// initLedger initializes the ledger
+func (t *DIDChaincode) initLedger(stub shim.ChaincodeStubInterface) peer.Response {
+	fmt.Println("DID Chaincode initialized")
+	return shim.Success(nil)
+}
+
+// createDID anchors a new DID Document on Fabric
+func (t *DIDChaincode) createDID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+	if len(args) != 3 {
+		return shim.Error("Incorrect number of arguments. Expecting 3: did, longFormDid, documentJSON")
+	}
+
+	did := args[0]
+	longFormDid := args[1]
+	documentJSON := args[2]
+
 	// Check if DID already exists
-	existingDID, err := ctx.GetStub().GetState(did)
+	existingDID, err := stub.GetState(did)
 	if err != nil {
-		return fmt.Errorf("failed to read from world state: %v", err)
+		return shim.Error(fmt.Sprintf("Failed to get DID: %s", err))
 	}
 	if existingDID != nil {
-		return fmt.Errorf("DID %s already exists", did)
+		return shim.Error(fmt.Sprintf("DID %s already exists", did))
 	}
 
 	// Create DID document
@@ -54,27 +89,40 @@ func (s *DIDContract) CreateDID(ctx contractapi.TransactionContextInterface, did
 
 	didJSON, err := json.Marshal(didDocument)
 	if err != nil {
-		return err
+		return shim.Error(err.Error())
 	}
 
-	return ctx.GetStub().PutState(did, didJSON)
+	err = stub.PutState(did, didJSON)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(didJSON)
 }
 
-// UpdateDID updates a DID Document
-func (s *DIDContract) UpdateDID(ctx contractapi.TransactionContextInterface, did string, updatedDocumentJSON string, operationSignature string) error {
+// updateDID updates a DID Document
+func (t *DIDChaincode) updateDID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+	if len(args) != 3 {
+		return shim.Error("Incorrect number of arguments. Expecting 3: did, updatedDocumentJSON, operationSignature")
+	}
+
+	did := args[0]
+	updatedDocumentJSON := args[1]
+	// operationSignature := args[2] // TODO: Implement signature validation
+
 	// Get existing DID document
-	didJSON, err := ctx.GetStub().GetState(did)
+	didJSON, err := stub.GetState(did)
 	if err != nil {
-		return fmt.Errorf("failed to read from world state: %v", err)
+		return shim.Error(fmt.Sprintf("Failed to get DID: %s", err))
 	}
 	if didJSON == nil {
-		return fmt.Errorf("DID %s does not exist", did)
+		return shim.Error(fmt.Sprintf("DID %s does not exist", did))
 	}
 
 	var existingDID DIDDocument
 	err = json.Unmarshal(didJSON, &existingDID)
 	if err != nil {
-		return err
+		return shim.Error(err.Error())
 	}
 
 	// Update DID document
@@ -84,27 +132,40 @@ func (s *DIDContract) UpdateDID(ctx contractapi.TransactionContextInterface, did
 
 	updatedJSON, err := json.Marshal(existingDID)
 	if err != nil {
-		return err
+		return shim.Error(err.Error())
 	}
 
-	return ctx.GetStub().PutState(did, updatedJSON)
+	err = stub.PutState(did, updatedJSON)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(updatedJSON)
 }
 
-// RecoverDID recovers a lost DID
-func (s *DIDContract) RecoverDID(ctx contractapi.TransactionContextInterface, did string, newDocumentJSON string, recoverySignature string) error {
+// recoverDID recovers a lost DID
+func (t *DIDChaincode) recoverDID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+	if len(args) != 3 {
+		return shim.Error("Incorrect number of arguments. Expecting 3: did, newDocumentJSON, recoverySignature")
+	}
+
+	did := args[0]
+	newDocumentJSON := args[1]
+	// recoverySignature := args[2] // TODO: Implement signature validation
+
 	// Get existing DID document
-	didJSON, err := ctx.GetStub().GetState(did)
+	didJSON, err := stub.GetState(did)
 	if err != nil {
-		return fmt.Errorf("failed to read from world state: %v", err)
+		return shim.Error(fmt.Sprintf("Failed to get DID: %s", err))
 	}
 	if didJSON == nil {
-		return fmt.Errorf("DID %s does not exist", did)
+		return shim.Error(fmt.Sprintf("DID %s does not exist", did))
 	}
 
 	var existingDID DIDDocument
 	err = json.Unmarshal(didJSON, &existingDID)
 	if err != nil {
-		return err
+		return shim.Error(err.Error())
 	}
 
 	// Recover DID document
@@ -116,65 +177,69 @@ func (s *DIDContract) RecoverDID(ctx contractapi.TransactionContextInterface, di
 
 	recoveredJSON, err := json.Marshal(existingDID)
 	if err != nil {
-		return err
+		return shim.Error(err.Error())
 	}
 
-	return ctx.GetStub().PutState(did, recoveredJSON)
+	err = stub.PutState(did, recoveredJSON)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(recoveredJSON)
 }
 
-// GetDID retrieves a DID Document
-func (s *DIDContract) GetDID(ctx contractapi.TransactionContextInterface, did string) (*DIDDocument, error) {
-	didJSON, err := ctx.GetStub().GetState(did)
+// getDID retrieves a DID Document
+func (t *DIDChaincode) getDID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1: did")
+	}
+
+	did := args[0]
+	didJSON, err := stub.GetState(did)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from world state: %v", err)
+		return shim.Error(fmt.Sprintf("Failed to get DID: %s", err))
 	}
 	if didJSON == nil {
-		return nil, fmt.Errorf("DID %s does not exist", did)
+		return shim.Error(fmt.Sprintf("DID %s does not exist", did))
 	}
 
-	var didDocument DIDDocument
-	err = json.Unmarshal(didJSON, &didDocument)
-	if err != nil {
-		return nil, err
-	}
-
-	return &didDocument, nil
+	return shim.Success(didJSON)
 }
 
-// ListDIDs returns all DIDs
-func (s *DIDContract) ListDIDs(ctx contractapi.TransactionContextInterface) ([]*DIDDocument, error) {
-	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+// listDIDs returns all DIDs
+func (t *DIDChaincode) listDIDs(stub shim.ChaincodeStubInterface) peer.Response {
+	resultsIterator, err := stub.GetStateByRange("", "")
 	if err != nil {
-		return nil, err
+		return shim.Error(err.Error())
 	}
 	defer resultsIterator.Close()
 
-	var dids []*DIDDocument
+	var dids []DIDDocument
 	for resultsIterator.HasNext() {
 		queryResponse, err := resultsIterator.Next()
 		if err != nil {
-			return nil, err
+			return shim.Error(err.Error())
 		}
 
 		var did DIDDocument
 		err = json.Unmarshal(queryResponse.Value, &did)
 		if err != nil {
-			return nil, err
+			return shim.Error(err.Error())
 		}
-		dids = append(dids, &did)
+		dids = append(dids, did)
 	}
 
-	return dids, nil
+	didsJSON, err := json.Marshal(dids)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(didsJSON)
 }
 
+// main function starts up the chaincode in the container during instantiate
 func main() {
-	didChaincode, err := contractapi.NewChaincode(&DIDContract{})
-	if err != nil {
-		fmt.Printf("Error creating DID chaincode: %v", err)
-		return
-	}
-
-	if err := didChaincode.Start(); err != nil {
-		fmt.Printf("Error starting DID chaincode: %v", err)
+	if err := shim.Start(new(DIDChaincode)); err != nil {
+		fmt.Printf("Error starting DID chaincode: %s", err)
 	}
 }
