@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -23,6 +26,24 @@ type DIDDocument struct {
 	Version     int       `json:"version"`
 	Recovered   bool      `json:"recovered,omitempty"`
 	RecoveredAt time.Time `json:"recoveredAt,omitempty"`
+	UpdateKey   string    `json:"updateKey,omitempty"`   // Public key for updates
+	RecoveryKey string    `json:"recoveryKey,omitempty"` // Public key for recovery
+}
+
+// validateSignature performs basic signature validation (simplified for demo)
+func (t *DIDChaincode) validateSignature(message, signature, publicKey string) bool {
+	// Simplified validation: check if signature contains hash of message + key
+	// In production, use proper cryptographic signature verification
+	if signature == "" || publicKey == "" {
+		return false
+	}
+	
+	// Create expected signature hash
+	hash := sha256.Sum256([]byte(message + publicKey))
+	expectedSig := hex.EncodeToString(hash[:])
+	
+	// Check if provided signature matches or contains expected pattern
+	return strings.Contains(signature, expectedSig[:16]) // First 16 chars for demo
 }
 
 // Init is called during chaincode instantiation
@@ -60,13 +81,22 @@ func (t *DIDChaincode) initLedger(stub shim.ChaincodeStubInterface) peer.Respons
 
 // createDID anchors a new DID Document on Fabric
 func (t *DIDChaincode) createDID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	if len(args) != 3 {
-		return shim.Error("Incorrect number of arguments. Expecting 3: did, longFormDid, documentJSON")
+	if len(args) < 3 || len(args) > 5 {
+		return shim.Error("Incorrect number of arguments. Expecting 3-5: did, longFormDid, documentJSON, [updateKey], [recoveryKey]")
 	}
 
 	did := args[0]
 	longFormDid := args[1]
 	documentJSON := args[2]
+	
+	// Optional keys for signature validation
+	var updateKey, recoveryKey string
+	if len(args) >= 4 {
+		updateKey = args[3]
+	}
+	if len(args) >= 5 {
+		recoveryKey = args[4]
+	}
 
 	// Check if DID already exists
 	existingDID, err := stub.GetState(did)
@@ -77,14 +107,23 @@ func (t *DIDChaincode) createDID(stub shim.ChaincodeStubInterface, args []string
 		return shim.Error(fmt.Sprintf("DID %s already exists", did))
 	}
 
+	// Get deterministic timestamp from transaction
+	txTimestamp, err := stub.GetTxTimestamp()
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to get transaction timestamp: %s", err))
+	}
+	txTime := time.Unix(txTimestamp.Seconds, int64(txTimestamp.Nanos))
+
 	// Create DID document
 	didDocument := DIDDocument{
 		DID:         did,
 		LongFormDID: longFormDid,
 		Document:    documentJSON,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   txTime,
+		UpdatedAt:   txTime,
 		Version:     1,
+		UpdateKey:   updateKey,
+		RecoveryKey: recoveryKey,
 	}
 
 	didJSON, err := json.Marshal(didDocument)
@@ -108,7 +147,7 @@ func (t *DIDChaincode) updateDID(stub shim.ChaincodeStubInterface, args []string
 
 	did := args[0]
 	updatedDocumentJSON := args[1]
-	// operationSignature := args[2] // TODO: Implement signature validation
+	operationSignature := args[2]
 
 	// Get existing DID document
 	didJSON, err := stub.GetState(did)
@@ -125,9 +164,24 @@ func (t *DIDChaincode) updateDID(stub shim.ChaincodeStubInterface, args []string
 		return shim.Error(err.Error())
 	}
 
+	// Get deterministic timestamp from transaction
+	txTimestamp, err := stub.GetTxTimestamp()
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to get transaction timestamp: %s", err))
+	}
+	txTime := time.Unix(txTimestamp.Seconds, int64(txTimestamp.Nanos))
+
+	// Validate signature if updateKey exists
+	if existingDID.UpdateKey != "" {
+		message := fmt.Sprintf("%s:%s:%d", did, updatedDocumentJSON, existingDID.Version+1)
+		if !t.validateSignature(message, operationSignature, existingDID.UpdateKey) {
+			return shim.Error("Invalid operation signature for update")
+		}
+	}
+
 	// Update DID document
 	existingDID.Document = updatedDocumentJSON
-	existingDID.UpdatedAt = time.Now()
+	existingDID.UpdatedAt = txTime
 	existingDID.Version++
 
 	updatedJSON, err := json.Marshal(existingDID)
@@ -151,7 +205,7 @@ func (t *DIDChaincode) recoverDID(stub shim.ChaincodeStubInterface, args []strin
 
 	did := args[0]
 	newDocumentJSON := args[1]
-	// recoverySignature := args[2] // TODO: Implement signature validation
+	recoverySignature := args[2]
 
 	// Get existing DID document
 	didJSON, err := stub.GetState(did)
@@ -168,12 +222,27 @@ func (t *DIDChaincode) recoverDID(stub shim.ChaincodeStubInterface, args []strin
 		return shim.Error(err.Error())
 	}
 
+	// Get deterministic timestamp from transaction
+	txTimestamp, err := stub.GetTxTimestamp()
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to get transaction timestamp: %s", err))
+	}
+	txTime := time.Unix(txTimestamp.Seconds, int64(txTimestamp.Nanos))
+
+	// Validate recovery signature if recoveryKey exists
+	if existingDID.RecoveryKey != "" {
+		message := fmt.Sprintf("%s:recovery:%s:%d", did, newDocumentJSON, existingDID.Version+1)
+		if !t.validateSignature(message, recoverySignature, existingDID.RecoveryKey) {
+			return shim.Error("Invalid recovery signature")
+		}
+	}
+
 	// Recover DID document
 	existingDID.Document = newDocumentJSON
-	existingDID.UpdatedAt = time.Now()
+	existingDID.UpdatedAt = txTime
 	existingDID.Version++
 	existingDID.Recovered = true
-	existingDID.RecoveredAt = time.Now()
+	existingDID.RecoveredAt = txTime
 
 	recoveredJSON, err := json.Marshal(existingDID)
 	if err != nil {
