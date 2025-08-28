@@ -1,0 +1,4 @@
+github.com/hyperledger/fabric-chaincode-go v0.0.0-20220131132609-1476cf1d3206 h1:VVXp5p8b9HUw7TKzz1xdl8V9+Zt6zKJKW/9oOzqe9+s=
+github.com/hyperledger/fabric-chaincode-go v0.0.0-20220131132609-1476cf1d3206/go.mod h1:C1jY4L1ZIgZjbgNmEqGBOVRnKKbCzT9jOqbNKNfwfaM=
+github.com/hyperledger/fabric-protos-go v0.0.0-20220202165055-956c75de7b17 h1:HjUfrpbqksJ1a7DTZe9D9dEGNGDOXeJZmDCEXK3PCho=
+github.com/hyperledger/fabric-protos-go v0.0.0-20220202165055-956c75de7b17/go.mod h1:OiOZiYNTz3QNt8zJ5+UqFjZRJr3xZs3J1cF3VoRGTzs=
