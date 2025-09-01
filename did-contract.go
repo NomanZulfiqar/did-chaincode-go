@@ -90,7 +90,7 @@ func (t *DIDChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 // initLedger initializes the ledger
 func (t *DIDChaincode) initLedger(stub shim.ChaincodeStubInterface) peer.Response {
 	fmt.Println("DID Chaincode v1.2x initialized for two-organization network")
-	fmt.Println("Supporting CompanyA (m-FQEEX22AZNEGDDJL4WCQP6KYHU) and CompanyB (m-JLGL2ZEX6BDIXIEFYD4RJVZSTI)")
+	fmt.Println("Supporting CompanyA (m-B3TIWCDZUJHEVNGE4JBRUQ7FSM) and CompanyB (m-PMT2NA5XABA4NBGRPCIJ2KAQ2I)")
 	return shim.Success([]byte("DID Chaincode v1.2x initialized successfully"))
 }
 
@@ -137,9 +137,9 @@ func (t *DIDChaincode) createDID(stub shim.ChaincodeStubInterface, args []string
 	
 	// Extract organization from creator (simplified)
 	createdBy := "unknown"
-	if strings.Contains(string(creator), "m-FQEEX22AZNEGDDJL4WCQP6KYHU") {
+	if strings.Contains(string(creator), "m-B3TIWCDZUJHEVNGE4JBRUQ7FSM") {
 		createdBy = "CompanyA"
-	} else if strings.Contains(string(creator), "m-JLGL2ZEX6BDIXIEFYD4RJVZSTI") {
+	} else if strings.Contains(string(creator), "m-PMT2NA5XABA4NBGRPCIJ2KAQ2I") {
 		createdBy = "CompanyB"
 	}
 
@@ -217,9 +217,9 @@ func (t *DIDChaincode) updateDID(stub shim.ChaincodeStubInterface, args []string
 	}
 	
 	updatedBy := "unknown"
-	if strings.Contains(string(creator), "m-FQEEX22AZNEGDDJL4WCQP6KYHU") {
+	if strings.Contains(string(creator), "m-B3TIWCDZUJHEVNGE4JBRUQ7FSM") {
 		updatedBy = "CompanyA"
-	} else if strings.Contains(string(creator), "m-JLGL2ZEX6BDIXIEFYD4RJVZSTI") {
+	} else if strings.Contains(string(creator), "m-PMT2NA5XABA4NBGRPCIJ2KAQ2I") {
 		updatedBy = "CompanyB"
 	}
 
@@ -300,9 +300,9 @@ func (t *DIDChaincode) recoverDID(stub shim.ChaincodeStubInterface, args []strin
 	}
 	
 	recoveredBy := "unknown"
-	if strings.Contains(string(creator), "m-FQEEX22AZNEGDDJL4WCQP6KYHU") {
+	if strings.Contains(string(creator), "m-B3TIWCDZUJHEVNGE4JBRUQ7FSM") {
 		recoveredBy = "CompanyA"
-	} else if strings.Contains(string(creator), "m-JLGL2ZEX6BDIXIEFYD4RJVZSTI") {
+	} else if strings.Contains(string(creator), "m-PMT2NA5XABA4NBGRPCIJ2KAQ2I") {
 		recoveredBy = "CompanyB"
 	}
 
@@ -392,7 +392,7 @@ func (t *DIDChaincode) getVersion(stub shim.ChaincodeStubInterface) peer.Respons
 	version := map[string]string{
 		"version": "1.2x",
 		"description": "DID Chaincode for two-organization network with full DID requirements",
-		"organizations": "CompanyA (m-FQEEX22AZNEGDDJL4WCQP6KYHU), CompanyB (m-JLGL2ZEX6BDIXIEFYD4RJVZSTI)",
+		"organizations": "CompanyA (m-B3TIWCDZUJHEVNGE4JBRUQ7FSM), CompanyB (m-PMT2NA5XABA4NBGRPCIJ2KAQ2I)",
 	}
 	
 	versionJSON, err := json.Marshal(version)
@@ -411,16 +411,16 @@ func (t *DIDChaincode) getNetworkInfo(stub shim.ChaincodeStubInterface) peer.Res
 		"organizations": []map[string]string{
 			{
 				"name": "CompanyA",
-				"msp_id": "m-FQEEX22AZNEGDDJL4WCQP6KYHU",
-				"peer": "nd-lhf6gjm2mrg2bkl4k2fycpwrd4.m-fqeex22aznegddjl4wcqp6kyhu.n-lhs7rblbt5drppe2pfry3il3yu.managedblockchain.us-east-1.amazonaws.com:30003",
+				"msp_id": "m-B3TIWCDZUJHEVNGE4JBRUQ7FSM",
+				"peer": "nd-466qufdqjrcwtfof4be2vvtjgm.m-b3tiwcdzujhevnge4jbruq7fsm.n-m5uavrmj4fbqlf6qliq4lnwp3y.managedblockchain.us-east-1.amazonaws.com:30003",
 			},
 			{
 				"name": "CompanyB", 
-				"msp_id": "m-JLGL2ZEX6BDIXIEFYD4RJVZSTI",
-				"peer": "nd-7sfv4dmoobf77guclpma7za2je.m-jlgl2zex6bdixiefyd4rjvzsti.n-lhs7rblbt5drppe2pfry3il3yu.managedblockchain.us-east-1.amazonaws.com:30006",
+				"msp_id": "m-PMT2NA5XABA4NBGRPCIJ2KAQ2I",
+				"peer": "nd-swl2emtedfg4vjlgztrvlvn7qm.m-pmt2na5xaba4nbgrpcij2kaq2i.n-m5uavrmj4fbqlf6qliq4lnwp3y.managedblockchain.us-east-1.amazonaws.com:30006",
 			},
 		},
-		"channel": "mychannel",
+		"channel": "twoorgs",
 		"endorsement_policy": "MAJORITY (requires both organizations)",
 	}
 	

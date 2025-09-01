@@ -8,4 +8,4 @@ require (
 )
 
 // Version 1.2x - Enhanced for two-organization deployment with full DID requirements
-// Supports CompanyA (m-FQEEX22AZNEGDDJL4WCQP6KYHU) and CompanyB (m-JLGL2ZEX6BDIXIEFYD4RJVZSTI)
+// Supports CompanyA (m-B3TIWCDZUJHEVNGE4JBRUQ7FSM) and CompanyB (m-PMT2NA5XABA4NBGRPCIJ2KAQ2I)
